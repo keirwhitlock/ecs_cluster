@@ -24,9 +24,9 @@ resource "aws_launch_template" "ecs_cluster_launch_template" {
   name                                 = "${var.name}_launch_template"
   image_id                             = data.aws_ami.ecs_ami.id
   instance_initiated_shutdown_behavior = "terminate"
-  instance_type                        = "t3.large"
-  user_data                            = base64encode(data.template_file.ecs_instance_user_data.rendered)
-  key_name                             = "keir.whitlock-laptopKey"
+  # instance_type                        = "t3.large"
+  user_data = base64encode(data.template_file.ecs_instance_user_data.rendered)
+  key_name  = "keir.whitlock-laptopKey"
   iam_instance_profile {
     name = aws_iam_instance_profile.instance_profile.name
   }
@@ -52,16 +52,16 @@ resource "aws_launch_template" "ecs_cluster_launch_template" {
 resource "aws_autoscaling_group" "ecs_cluster" {
   name                = "${var.name}_asg"
   vpc_zone_identifier = var.subnets
-  min_size            = 1
-  desired_capacity    = 3
-  max_size            = 3
+  min_size            = var.min_num_instances
+  desired_capacity    = var.desired_num_instances
+  max_size            = var.max_num_instances
 
   mixed_instances_policy {
     instances_distribution {
       spot_allocation_strategy                 = "lowest-price"
       spot_instance_pools                      = 2
       spot_max_price                           = ""
-      on_demand_percentage_above_base_capacity = 0
+      on_demand_percentage_above_base_capacity = var.ondemand_percentage
     }
     launch_template {
       launch_template_specification {
@@ -69,12 +69,13 @@ resource "aws_autoscaling_group" "ecs_cluster" {
         version            = "$Latest"
       }
 
-      override {
-        instance_type = "t3.large"
-      }
 
-      override {
-        instance_type = "t3.medium"
+      dynamic "override" {
+        for_each = var.instance_types_to_use
+        content {
+          instance_type     = override.value.type
+          weighted_capacity = override.value.weight
+        }
       }
 
     }
