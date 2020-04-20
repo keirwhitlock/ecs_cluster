@@ -34,6 +34,7 @@ resource "aws_launch_template" "ecs_cluster_launch_template" {
   network_interfaces {
     associate_public_ip_address = false
     security_groups             = ["${aws_security_group.ecs_cluster_instance_sg.id}"]
+    delete_on_termination = true
   }
 
   tag_specifications {
